@@ -1,3 +1,4 @@
+-----If you are running this in PL/SQL or inside a view/report, use a CTE (WITH clause) instead:
 WITH date_vars AS (
     SELECT 
         TO_DATE('2025-02-01', 'YYYY-MM-DD') AS start_date,
