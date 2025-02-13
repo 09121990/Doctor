@@ -1,50 +1,46 @@
+WITH date_vars AS (
+    SELECT 
+        TO_DATE('2025-02-01', 'YYYY-MM-DD') AS start_date,
+        TO_DATE('2025-02-28', 'YYYY-MM-DD') AS end_date
+    FROM DUAL  -- ✅ Always add FROM DUAL in Oracle
+)
 SELECT 
-    A."Doctor", 
-    A."Advised_Patients", 
-    COALESCE(B."Taken_Patients", 0) AS "Taken_Patients", 
-    COALESCE(B."Taken_Patients" / A."Advised_Patients", 0) AS "Conversion_Rate"
-FROM
-    -- Subquery A: Count of Patients Advised for DHI
-    (
-        SELECT
-            CP."SNAME" AS "Doctor",
-            COUNT(DISTINCT AT."PATID") AS "Advised_Patients"
-        FROM
-            "LTHMS"."ADVICETYPE" AT
-            LEFT JOIN "RECEIPTDETAIL" RD ON RD."BILLNO" = AT."BILLNO"
-            LEFT JOIN "CLINICPERSONNEL" CP ON CP."SID" = RD."SID"
-        WHERE
-            LOWER(AT."OPERATION")NOT LIKE '%dhi%' 
-            AND AT."ADVDATE" BETWEEN TO_DATE('2025-01-01', 'YYYY-MM-DD') 
-                                AND TO_DATE('2025-01-31', 'YYYY-MM-DD')
-        GROUP BY 
-            CP."SNAME"
-    ) A
-LEFT JOIN
-    -- Subquery B: Count of Patients Who Took DHI
-    (
-        SELECT
-            CP."SNAME" AS "Doctor",
-            COUNT(DISTINCT OCD."PATID") AS "Taken_Patients"
-        FROM
-            "LTHMS"."OPTCHARGEDETAIL" OCD
-            LEFT JOIN "CLINICPERSONNEL" CP ON CP."SID" = OCD."SID"
-        WHERE
-            (
-                LOWER(OCD."RPATTYPE")NOT LIKE '%dhi%' 
-                OR OCD."RPATTYPE" IS NULL
-            )
-            AND OCD."PATID" IN (
-                SELECT DISTINCT AT."PATID"
-                FROM "LTHMS"."ADVICETYPE" AT
-                WHERE
-                    LOWER(AT."OPERATION")NOT LIKE '%dhi%' 
-                    AND AT."ADVDATE" BETWEEN TO_DATE('2025-01-01', 'YYYY-MM-DD') 
-                                        AND TO_DATE('2025-01-31', 'YYYY-MM-DD')
-            )
-            AND OCD."BILLDATE" BETWEEN TO_DATE('2025-01-01', 'YYYY-MM-DD') 
-                                  AND TO_DATE('2025-01-31', 'YYYY-MM-DD')
-        GROUP BY 
-            CP."SNAME"
-    ) B 
-    ON A."Doctor" = B."Doctor";
+    CP.SNAME AS "Dr_Name",
+    COUNT(DISTINCT OCD.PATID) AS "Procedure All Patient",
+    COUNT(DISTINCT RD.PATID) AS "Take Procedure from Receive",
+    COALESCE(OCD_TOTAL.NETAMT_SUM, 0) AS "Procedure Amount",
+    COUNT(DISTINCT RD2.PATID) AS "All Patient from Receive"
+FROM LTHMS.CLINICPERSONNEL CP
+LEFT JOIN (
+    SELECT SID, PATID 
+    FROM LTHMS.OPTCHARGEDETAIL, date_vars
+    WHERE BILLDATE BETWEEN date_vars.start_date AND date_vars.end_date
+    AND LOWER(RPATTYPE) NOT LIKE '%dhi%'
+) OCD 
+  ON OCD.SID = CP.SID
+LEFT JOIN (
+    SELECT SID, PATID
+    FROM LTHMS.RECEIPTDETAIL, date_vars
+    WHERE RCPTDATE BETWEEN date_vars.start_date AND date_vars.end_date
+    GROUP BY SID, PATID  
+) RD 
+  ON OCD.SID = RD.SID 
+  AND OCD.PATID = RD.PATID
+LEFT JOIN (
+    SELECT SID, PATID
+    FROM LTHMS.RECEIPTDETAIL, date_vars
+    WHERE RCPTDATE BETWEEN date_vars.start_date AND date_vars.end_date
+    GROUP BY SID, PATID  
+) RD2 
+  ON CP.SID = RD2.SID  
+LEFT JOIN (
+    SELECT SID, SUM(NETAMT) AS NETAMT_SUM
+    FROM LTHMS.OPTCHARGEDETAIL, date_vars
+    WHERE BILLDATE BETWEEN date_vars.start_date AND date_vars.end_date
+    AND LOWER(RPATTYPE) NOT LIKE '%dhi%'
+    GROUP BY SID
+) OCD_TOTAL 
+  ON CP.SID = OCD_TOTAL.SID
+WHERE OCD_TOTAL.NETAMT_SUM <> 0
+GROUP BY CP.SNAME, OCD_TOTAL.NETAMT_SUM
+ORDER BY "Procedure Amount" DESC
