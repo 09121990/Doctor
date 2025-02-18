@@ -7,13 +7,13 @@ JOIN LTHMS.RECEIPTDETAIL RD
     ON CP.SID = RD.SID  -- Joining receipt details with clinic personnel to get doctor-patient relationships
 JOIN LTHMS.PATIENTS PNTS 
     ON RD.PATID = PNTS.PATID  -- Joining with patients table to apply registration date filter
-WHERE PNTS.REGISDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'  -- Filtering patients registered in January 2025
-AND RD.RCPTDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'  -- Filtering visits made in January 2025
+WHERE PNTS.REGISDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31' 
+AND RD.RCPTDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'
 AND RD.SID = (
     -- Subquery: Selecting the first doctor each patient visited
     SELECT MIN(RD2.SID) KEEP (DENSE_RANK FIRST ORDER BY RD2.RCPTDATE)  
     FROM LTHMS.RECEIPTDETAIL RD2  
     WHERE RD2.PATID = RD.PATID  -- Matching the same patient
-    AND RD2.RCPTDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'  -- Considering visits only within the date range
+    AND RD2.RCPTDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'  
 )
 GROUP BY CP.SID;  -- Grouping by doctor ID to get unique patient counts per doctor
