@@ -1,0 +1,19 @@
+-- Selecting Doctor ID and the count of unique patients each doctor saw first
+SELECT 
+    CP.SID AS "Doctor ID",  
+    COUNT(DISTINCT RD.PATID) AS "Patient Count"  -- Counting distinct patients assigned to each doctor
+FROM LTHMS.CLINICPERSONNEL CP
+JOIN LTHMS.RECEIPTDETAIL RD 
+    ON CP.SID = RD.SID  -- Joining receipt details with clinic personnel to get doctor-patient relationships
+JOIN LTHMS.PATIENTS PNTS 
+    ON RD.PATID = PNTS.PATID  -- Joining with patients table to apply registration date filter
+WHERE PNTS.REGISDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'  -- Filtering patients registered in January 2025
+AND RD.RCPTDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'  -- Filtering visits made in January 2025
+AND RD.SID = (
+    -- Subquery: Selecting the first doctor each patient visited
+    SELECT MIN(RD2.SID) KEEP (DENSE_RANK FIRST ORDER BY RD2.RCPTDATE)  
+    FROM LTHMS.RECEIPTDETAIL RD2  
+    WHERE RD2.PATID = RD.PATID  -- Matching the same patient
+    AND RD2.RCPTDATE BETWEEN DATE '2025-01-01' AND DATE '2025-01-31'  -- Considering visits only within the date range
+)
+GROUP BY CP.SID;  -- Grouping by doctor ID to get unique patient counts per doctor
