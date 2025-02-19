@@ -1,0 +1,23 @@
+
+SELECT
+  "SNAME" AS "Doctor Name", 
+  SUM("LTHMS"."RECEIPTDETAIL"."RECAMOUNT") "Consultation Revenue", 
+  COUNT(DISTINCT "BILLNO") "Count of Consultation", 
+  COUNT(DISTINCT "PATID") "Count of Patients"
+FROM "LTHMS"."RECEIPTDETAIL"
+LEFT JOIN "CLINICPERSONNEL" ON "CLINICPERSONNEL"."SID" = "RECEIPTDETAIL"."SID"
+WHERE 1 = 1
+   AND 1 = 1 AND 1 = 1
+GROUP BY "SNAME"
+ORDER BY "Consultation Revenue" DESC;
+-------------------------Metabase Query
+SELECT
+  "SNAME" AS "Doctor Name", 
+  SUM("LTHMS"."RECEIPTDETAIL"."RECAMOUNT") "Consultation Revenue", 
+  COUNT(DISTINCT "BILLNO") "Count of Consultation", 
+  COUNT(DISTINCT "PATID") "Count of Patients"
+FROM "LTHMS"."RECEIPTDETAIL"
+LEFT JOIN "CLINICPERSONNEL" ON "CLINICPERSONNEL"."SID" = "RECEIPTDETAIL"."SID"
+WHERE {{Date}} AND {{Branch}} AND {{Doctor_Name}}
+GROUP BY "SNAME"
+ORDER BY "Consultation Revenue" DESC
