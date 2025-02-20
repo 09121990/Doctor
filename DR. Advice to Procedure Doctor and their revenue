@@ -1,0 +1,37 @@
+SELECT
+  "Clinicpersonnel"."SNAME" "Clinicpersonnel__SNAME",
+  "Clinicpersonnel_2"."SNAME" "Clinicpersonnel_2__SNAME",
+  SUM("Proceduretype"."RATE") "sum"
+FROM
+  "LTHMS"."PATIENTPROCEDUREDETAIL"
+ 
+LEFT JOIN "LTHMS"."CLINICPERSONNEL" "Clinicpersonnel" ON "LTHMS"."PATIENTPROCEDUREDETAIL"."SID" = "Clinicpersonnel"."SID"
+  LEFT JOIN "LTHMS"."PROCEDURETYPE" "Proceduretype" ON "LTHMS"."PATIENTPROCEDUREDETAIL"."PROCEDUREID" = "Proceduretype"."PID"
+  LEFT JOIN "LTHMS"."CLINICPERSONNEL" "Clinicpersonnel_2" ON "LTHMS"."PATIENTPROCEDUREDETAIL"."GIVENSID" = "Clinicpersonnel_2"."SID"
+WHERE
+  "LTHMS"."PATIENTPROCEDUREDETAIL"."ADVDATE" BETWEEN date '2024-12-31'
+ 
+   AND date '2025-01-31'
+  AND (
+    (
+      "Proceduretype"."PROCEDURENAME" <> 'DHI - Beard Transplant'
+    )
+   
+    OR ("Proceduretype"."PROCEDURENAME" IS NULL)
+  )
+  AND (
+    (
+      "Proceduretype"."PROCEDURENAME" <> 'DHI - Brow Transplant (Both)'
+    )
+    OR ("Proceduretype"."PROCEDURENAME" IS NULL)
+  )
+  AND (
+    ("Proceduretype"."PROCEDURENAME" <> 'DHI - Hair')
+    OR ("Proceduretype"."PROCEDURENAME" IS NULL)
+  )
+GROUP BY
+  "Clinicpersonnel"."SNAME",
+  "Clinicpersonnel_2"."SNAME"
+ORDER BY
+  "Clinicpersonnel"."SNAME" ASC,
+  "Clinicpersonnel_2"."SNAME" ASC
