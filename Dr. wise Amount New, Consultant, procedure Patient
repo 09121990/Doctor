@@ -1,8 +1,9 @@
 SELECT
+   CP.SID AS "Dr_ID",
   CP.SNAME AS "Dr_Name",
    NVL(PNT."NEW_PATIENT",0) AS  "New Patient", -- Include Patient Count from the subquery
    (COUNT(DISTINCT RD2.PATID) - NVL(PNT."NEW_PATIENT",0)) AS "Old Patient",
-   COUNT(DISTINCT RD2.PATID) AS "Total Patient",
+   COUNT(DISTINCT RD2.PATID) AS "Total Patient",    -- Total consultation Patien
    COUNT(DISTINCT RD.PATID) AS "Consultation to Procedure ",
     CASE 
         WHEN COUNT(DISTINCT RD2.PATID) > 0 THEN 
@@ -10,7 +11,10 @@ SELECT
         ELSE '0%' 
     END AS "Conversion",  -- Conversion as percentage with 2 decimal places
    COUNT(DISTINCT OCD.PATID) AS "Total Procedure",
-   COALESCE(OCD_TOTAL.NETAMT_SUM, 0) AS "Procedure Revenue"
+   COALESCE(OCD_TOTAL.Discount, 0) AS Discount,
+   COALESCE(OCD_TOTAL.Receive_Amount, 0) AS "Procedure Receive Revenue",
+   COALESCE(OCD_TOTAL.Honor_Amount, 0) AS "Honor Amount",
+   COALESCE(OCD_TOTAL.OCD_TOTAL.Collection_Amount, 0) AS Collection_Amount
 
 FROM LTHMS.CLINICPERSONNEL CP
 LEFT JOIN (
@@ -48,8 +52,8 @@ LEFT JOIN (
                         AND TO_DATE('2025-01-31', 'YYYY-MM-DD')
     GROUP BY SID, PATID
 ) RD 
-  --OCD.SID = RD.SID  AND
-   ON OCD.PATID = RD.PATID
+  ON OCD.SID = RD.SID  
+  AND  OCD.PATID = RD.PATID
 LEFT JOIN (
     SELECT SID, PATID
     FROM LTHMS.RECEIPTDETAIL
@@ -60,7 +64,7 @@ LEFT JOIN (
 ) RD2 
   ON CP.SID = RD2.SID  -- Join directly on CP.SID
 LEFT JOIN (
-    SELECT SID, SUM(NETAMT) AS NETAMT_SUM
+    SELECT SID,SUM(LTHMS.OPTCHARGEDETAIL.DISCOUNT) AS Discount, SUM(RECAMOUNT) AS Receive_Amount,SUM(HONORAMT) AS Honor_Amount,SUM(NETCOLLECTION) AS Collection_Amount
     FROM LTHMS.OPTCHARGEDETAIL
     WHERE BILLDATE BETWEEN TO_DATE('2025-01-01', 'YYYY-MM-DD') 
                         AND TO_DATE('2025-01-31', 'YYYY-MM-DD')
@@ -68,10 +72,9 @@ LEFT JOIN (
     GROUP BY SID
 ) OCD_TOTAL 
   ON CP.SID = OCD_TOTAL.SID
-WHERE OCD_TOTAL.NETAMT_SUM <> 0
-GROUP BY CP.SNAME, OCD_TOTAL.NETAMT_SUM, PNT."NEW_PATIENT"  -- Include Patient Count in GROUP BY
-ORDER BY "Procedure Revenue" DESC;
-
+WHERE OCD_TOTAL.Receive_Amount > 0
+GROUP BY CP.SID,CP.SNAME,OCD_TOTAL.Discount, OCD_TOTAL.Receive_Amount, OCD_TOTAL.Honor_Amount,OCD_TOTAL.Collection_Amount,PNT."NEW_PATIENT"  -- Include Patient Count in GROUP BY
+ORDER BY "Procedure Receive Revenue" DESC;
 
 
 -------------------------------------------- with Date Parameter
