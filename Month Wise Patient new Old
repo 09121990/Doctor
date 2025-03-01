@@ -1,0 +1,75 @@
+    
+WITH 
+-- Count total consulted patients per branch
+CONSULTED AS (
+    SELECT 
+        BRANCH, 
+        COUNT(DISTINCT PATID) AS "ConsulPatient"
+    FROM LTHMS.RECEIPTDETAIL
+    WHERE AMOUNT > 0 
+    AND RCPTDATE BETWEEN DATE '2025-02-01' AND DATE '2025-02-28'
+    GROUP BY BRANCH
+),
+-- Count new patients registered in February 2025 per branch
+NEW_PATIENTS AS (
+    SELECT 
+        RD.BRANCH, 
+        COUNT(DISTINCT RD.PATID) AS "NEW_PATIENT"
+    FROM LTHMS.RECEIPTDETAIL RD
+    JOIN LTHMS.PATIENTS PNTS 
+        ON RD.PATID = PNTS.PATID  
+    WHERE PNTS.REGISDATE BETWEEN DATE '2025-02-01' AND DATE '2025-02-28' 
+    AND RD.AMOUNT > 0 
+    AND RD.RCPTDATE BETWEEN DATE '2025-02-01' AND DATE '2025-02-28'
+    GROUP BY RD.BRANCH
+)
+-- Final aggregation joining both counts
+SELECT 
+  
+    C.BRANCH, 
+    C."ConsulPatient", 
+    NVL(NP."NEW_PATIENT", 0) AS "NEW_PATIENT", 
+    (C."ConsulPatient" - NVL(NP."NEW_PATIENT", 0)) AS "Old Patient" 
+FROM CONSULTED C
+LEFT JOIN NEW_PATIENTS NP 
+    ON C.BRANCH = NP.BRANCH
+ORDER BY C."ConsulPatient" DESC;
+-------------------------------Version 01
+WITH 
+-- Count total consulted patients per branch per month
+CONSULTED AS (
+    SELECT 
+        TO_CHAR(RCPTDATE, 'YYYY-MM') AS "MONTH",
+        BRANCH, 
+        COUNT(DISTINCT PATID) AS "ConsulPatient"
+    FROM LTHMS.RECEIPTDETAIL
+    WHERE AMOUNT > 0 
+    AND RCPTDATE BETWEEN DATE '2024-01-01' AND DATE '2025-12-31'
+    GROUP BY TO_CHAR(RCPTDATE, 'YYYY-MM'), BRANCH
+),
+-- Count new patients registered per branch per month
+NEW_PATIENTS AS (
+    SELECT 
+        TO_CHAR(PNTS.REGISDATE, 'YYYY-MM') AS "MONTH",
+        PNTS.BRANCH, 
+        COUNT(DISTINCT PNTS.PATID) AS "NEW_PATIENT"
+    FROM LTHMS.RECEIPTDETAIL RD
+    JOIN LTHMS.PATIENTS PNTS 
+        ON RD.PATID = PNTS.PATID  
+    WHERE PNTS.REGISDATE BETWEEN DATE '2024-01-01' AND DATE '2025-12-31'  
+    AND RD.AMOUNT > 0
+    AND RD.RCPTDATE BETWEEN DATE '2024-01-01' AND DATE '2025-12-31'
+    GROUP BY TO_CHAR(PNTS.REGISDATE, 'YYYY-MM'), PNTS.BRANCH
+)
+-- Final aggregation joining both counts
+SELECT 
+    C."MONTH",
+    C.BRANCH, 
+    C."ConsulPatient", 
+    NVL(NP."NEW_PATIENT", 0) AS "NEW_PATIENT", 
+    (C."ConsulPatient" - NVL(NP."NEW_PATIENT", 0)) AS "Old Patient"
+FROM CONSULTED C
+LEFT JOIN NEW_PATIENTS NP 
+    ON C.BRANCH = NP.BRANCH 
+    AND C."MONTH" = NP."MONTH"
+ORDER BY C."MONTH" ASC, C."ConsulPatient" DESC;
