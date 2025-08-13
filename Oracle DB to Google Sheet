@@ -1,0 +1,95 @@
+import cx_Oracle
+import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
+
+# Define the DSN using the TNS configuration
+# dsn_tns = cx_Oracle.makedsn("192.168.139.124", "1521", service_name="lthms.lt.local")
+
+# Connect to the database using the TNS connection string
+# conn = cx_Oracle.connect(user="lthms", password="lthms_D123", dsn=dsn_tns)
+conn = cx_Oracle.connect("lthms", "lthms_D123", "LTHMS")
+# Print connection status
+print("Connected to Oracle Database")
+
+# Create a cursor object to execute the query
+cursor = conn.cursor()
+
+# Your SQL query
+query = """
+SELECT PATID,NAME,ADDRESS,SEX, AGE,CITY, DISTRICT,PATREFERENCE,REGISDATE,TELEPHONE, NATIONALITY,COUNTRY,MARITAL,BRANCH
+FROM PATIENTS
+WHERE REGISDATE BETWEEN DATE '2025-01-01' AND DATE '2025-12-31'
+ORDER BY REGISDATE DESC
+
+"""
+
+# Execute the query
+cursor.execute(query)
+
+# Fetch all results
+rows = cursor.fetchall()
+
+# Print the results
+for row in rows:
+    print(row)
+
+df = pd.read_sql(query, conn)
+
+# Don't forget to close the connection when done
+conn.close()
+
+
+# Google Sheets API Authentication
+
+SERVICE_ACCOUNT_FILE = r"D:\PythonScript\google_Sheet_Json\service_account.json" # Update with your file path
+scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
+client = gspread.authorize(creds)
+
+# Open Google Sheet
+# SHEET_ID = "1X61U23-ISDQSeqK3S9offBglXsA17Z95SwicnH3XiiI"
+# sheet = client.open_by_key(SHEET_ID).sheet1  # Select the first sheet
+
+
+# Open Google Sheet
+SHEET_ID = "1X61U23-ISDQSeqK3S9offBglXsA17Z95SwicnH3XiiI"
+spreadSheet = client.open_by_key(SHEET_ID)
+sheet = spreadSheet.worksheet('Patient')  # Select the first sheet
+
+
+# Convert datetime columns to string format before sending to Google Sheets
+for col in df.select_dtypes(include=['datetime64']):
+    df[col] = df[col].dt.strftime('%Y-%m-%d')
+
+# Send Data to Google Sheet
+sheet.clear()  # Clear old data before inserting new data
+sheet.update([df.columns.values.tolist()] + df.astype(str).values.tolist())  # Convert all data to string
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
